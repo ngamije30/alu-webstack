@@ -1,24 +1,21 @@
 #!/usr/bin/env bash
-# Bash script to display information about subdomains
+# This script audits DNS records for specified subdomains of a domain.
 
-dns_config () {
-    # Use dig to fetch DNS record, extract relevant information, and format the output
-    record_info=$(dig "$2"."$1" +short)
-    if [[ -n "$record_info" ]]; then
-        echo "The subdomain $2 is a A record and points to $record_info"
+function audit_subdomain {
+    local domain="$1"
+    local subdomain="$2"
+
+    if [ -z "$subdomain" ]; then
+        subdomains=("www" "lb-01" "web-01" "web-02")
     else
-        echo "No record found for subdomain $2.$1"
+        subdomains=("$subdomain")
     fi
+
+    for sub in "${subdomains[@]}"; do
+        record_type=$(dig "$sub.$domain" | awk '/ANSWER SECTION/ { getline; print $4 }')
+        destination=$(dig "$sub.$domain" | awk '/ANSWER SECTION/ { getline; print $5 }')
+        echo "The subdomain $sub is a $record_type record and points to $destination"
+    done
 }
 
-# Check number of arguments and call dns_config accordingly
-if [[ "$#" -eq 1 ]]; then
-    for sub in www lb-01 web-01 web-02; do
-        dns_config "$1" "$sub"
-    done
-elif [[ "$#" -eq 2 ]]; then
-    dns_config "$1" "$2"
-else
-    echo "Usage: $0 domain [subdomain]"
-    exit 1
-fi
+audit_subdomain "$1" "$2"
